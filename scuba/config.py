@@ -274,6 +274,34 @@ def _process_environment(node: CfgNode, name: str) -> Environment:
     return result
 
 
+def _process_image(node: CfgNode) -> Optional[str]:
+    """Process an image-type node
+
+    Args:
+      node: A node of image data retrieved from a YAML document.
+      Should be an "image schema" node as described in docs/configuration.rst.
+
+    Returns:
+      An image name
+    """
+    if isinstance(node, str):
+        # The image is just the text itself
+        return node
+
+    if isinstance(node, dict):
+        # There must be a "name" key, which must be a string
+        image = node.get("name")
+        if not image:
+            raise ConfigError(f"image: must have a 'name' subkey")
+
+        if isinstance(image, str):
+            return image
+
+        raise ConfigError(f"image.name: must be a string")
+
+    return None
+
+
 def _get_nullable_str(data: Dict[str, Any], key: str) -> Optional[str]:
     # N.B. We can't use data.get() here, because that might return
     # None, leading to ambiguity between the key being absent or set
@@ -329,13 +357,11 @@ def _get_typed_val(
 
 
 @overload  # When default is None, can return None (Optional).
-def _get_str(data: CfgData, key: str, default: None = None) -> Optional[str]:
-    ...
+def _get_str(data: CfgData, key: str, default: None = None) -> Optional[str]: ...
 
 
 @overload  # When default is non-None, cannot return None.
-def _get_str(data: CfgData, key: str, default: str) -> str:
-    ...
+def _get_str(data: CfgData, key: str, default: str) -> str: ...
 
 
 def _get_str(data: CfgData, key: str, default: Optional[str] = None) -> Optional[str]:
@@ -567,7 +593,7 @@ class ScubaConfig:
                 + ", ".join(extra)
             )
 
-        self._image = _get_str(data, "image")
+        self._image = _process_image(data.get("image"))
         self.shell = _get_str(data, "shell", DEFAULT_SHELL)
         self.entrypoint = _get_entrypoint(data)
         self.docker_args = _get_docker_args(data)

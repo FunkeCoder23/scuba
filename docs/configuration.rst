@@ -90,6 +90,19 @@ The ``image`` node is usually necessary but, as of scuba 2.5, can be omitted
 for ``.scuba.yml`` files in which only the ``aliases`` are intended to be used.
 
 
+Example:
+
+.. code-block:: yaml
+
+  # .gitlab-ci.yml
+    image:
+      name: debian:8.2
+
+  # .scuba.yml
+    image: !from_yaml \\.gitlab-ci.yml image
+
+The ``image`` node can also 
+
 .. _conf_environment:
 
 ``environment``
