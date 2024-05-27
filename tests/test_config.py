@@ -1099,3 +1099,82 @@ class TestConfigVolumes(ConfigTest):
             """,
             error_match="Volume /foo must have exactly one of 'hostpath' or 'name' subkey",
         )
+
+    def test_image_name(self) -> None:
+        """load_config loads a config using !from_yaml with nested keys"""
+        GITLAB_YML.write_text(
+            """
+            one:
+                image:
+                    name: "dummian:8.2"
+            """
+        )
+        config = load_config(
+            config_text=f"image: !from_yaml {GITLAB_YML} one.image"
+        )
+        assert config.image == "dummian:8.2"
+    
+    def test_image_single_entrypoint(self) -> None:
+        """gitlab images can have an array of entrypoints"""
+        GITLAB_YML.write_text(
+            """
+            build_all:
+                image:
+                    name: "dummian:8.2"
+                    entrypoint: ["/usr/bin/bash"]
+                script: "make -j24"
+            """
+        )
+        config = load_config(
+            config_text=f"image: !from_yaml {GITLAB_YML} somewhere.down.here"
+        )
+        assert config.image == "dummian:8.2"
+        assert config.entrypoint == "/usr/bin/bash"
+
+    def test_image_multiple_entrypoints(self) -> None:
+        """gitlab images can have multiple entrypoints"""
+        GITLAB_YML.write_text(
+            """
+            one:
+                image:
+                    name: "dummian:8.2"
+                    entrypoint: ["/usr/bin/bash", "/opt/run_with_env.sh"]
+            """
+        )
+        config = load_config(
+            config_text=f"image: !from_yaml {GITLAB_YML} one.image"
+        )
+        assert config.image == "dummian:8.2"
+        assert config.entrypoint == "/usr/bin/bash"
+
+    def test_image_pull_policy(self) -> None:
+        """pull_policy can be always, if-not-present, or never"""
+        GITLAB_YML.write_text(
+            """
+            build_all:
+                image:
+                    name: "dummian:8.2"
+                    entrypoint: ["/usr/bin/bash", "/opt/run_with_env.sh"]
+                script: "echo single pull policy"
+            """
+        )
+        config = load_config(
+            config_text=f"image: !from_yaml {GITLAB_YML} somewhere.down.here"
+        )
+        assert config.image == "dummian:8.2"
+
+    def test_image_pull_policy_array(self) -> None:
+        """pull_policy can also be an array containing always, if-not-present, or never"""
+        GITLAB_YML.write_text(
+            """
+            build_all:
+                image:
+                    name: "dummian:8.2"
+                    pull_policy: [always, if-not-present]
+                script: "echo multiple pull policies (why?)"
+            """
+        )
+        config = load_config(
+            config_text=f"image: !from_yaml {GITLAB_YML} somewhere.down.here"
+        )
+        assert config.image == "dummian:8.2"
